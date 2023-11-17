@@ -1,0 +1,12 @@
+---
+title: "p8105_jl5934_hw6"
+author: "Jesus Luevano"
+date: "2023-11-17"
+output: github_document
+---
+
+```{r}
+library(tidyverse)
+library(modelr)
+```
+
