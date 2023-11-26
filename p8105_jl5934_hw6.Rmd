@@ -25,8 +25,27 @@ Create a plot that shows the estimated ORs and CIs for each city. Organize citie
 
 
 ```{r}
+WaPo.df <- read_csv("data/homicide-data.csv") %>%
+  janitor::clean_names() %>%
+  mutate(city_state = 
+           paste0(city,", ",state),
+         victim_age = as.numeric(victim_age),
+         resolved = ifelse(disposition == "Closed by arrest", 1, 0)) %>%
+  filter(!(city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL"))) %>%
+  subset(victim_race %in% c("White", "Black"))
 
 ```
+
+```{r}
+Balt_model = WaPo.df %>%
+  filter(city_state == "Baltimore, MD") |>
+  glm(resolved ~ victim_age + victim_sex + victim_race, data = _, family = binomial()) %>%
+  broom::tidy() %>%
+  filter(term == "victim_sexMale") %>%
+  mutate(OR = exp(estimate),
+         upper_CI = )
+```
+
 
 
 #Problem 2
