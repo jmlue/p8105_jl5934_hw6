@@ -15,15 +15,9 @@ library(caret)
 
 # Problem 1
 
-Create a city_state variable (e.g. “Baltimore, MD”), and a binary variable indicating whether the homicide is solved. Omit cities Dallas, TX; Phoenix, AZ; and Kansas City, MO – these don’t report victim race. Also omit Tulsa, AL – this is a data entry mistake. For this problem, limit your analysis those for whom victim_race is white or black. Be sure that victim_age is numeric.
+For this problem we will utilize the Washington post data on homicides, to evaluate a generalized logistic regression model to predict resolved cases based on victim age, victim sex, and victim race. 
 
-For the city of Baltimore, MD, use the glm function to fit a logistic regression with resolved vs unresolved as the outcome and victim age, sex and race as predictors. Save the output of glm as an R object; apply the broom::tidy to this object; and obtain the estimate and confidence interval of the adjusted odds ratio for solving homicides comparing male victims to female victims keeping all other variables fixed.
-
-Now run glm for each of the cities in your dataset, and extract the adjusted odds ratio (and CI) for solving homicides comparing male victims to female victims. Do this within a “tidy” pipeline, making use of purrr::map, list columns, and unnest as necessary to create a dataframe with estimated ORs and CIs for each city.
-
-Create a plot that shows the estimated ORs and CIs for each city. Organize cities according to estimated OR, and comment on the plot.
-
-
+First we import and clean the data for our purposes. 
 
 ```{r, WaPO DF}
 WaPo.df <- read_csv("data/homicide-data.csv") %>%
@@ -37,17 +31,58 @@ WaPo.df <- read_csv("data/homicide-data.csv") %>%
 
 ```
 
+Next we trial the model on solely Baltimore, MD.
+
 ```{r, trial with Balt model}
 Balt_model = WaPo.df %>%
   filter(city_state == "Baltimore, MD") |>
   glm(resolved ~ victim_age + victim_sex + victim_race, data = _, family = binomial()) %>%
   broom::tidy() %>%
-  filter(term == "victim_sexMale") 
-  #mutate(OR = exp(estimate),
-        # upper_CI = )
+  filter(term == "victim_sexMale") %>%
+  mutate(OR = exp(estimate),
+         lower_CI = OR - 1.96*std.error,
+         upper_CI = OR + 1.96*std.error)
 ```
 
+Now we create a model that works for all the cities to output an OR of homcide being resolved based on victim sex of male vs female, and calculate the upper and lower confidence intervals. 
 
+```{r, glm with all cities}
+cities = as.vector(unique(WaPo.df$city_state))
+
+OR_sex = function(x) {
+  
+  model <- WaPo.df %>%
+  filter(city_state == x) |>
+  glm(resolved ~ victim_age + victim_sex + victim_race, data = _, family = binomial()) %>%
+  broom::tidy() %>%
+  filter(term == "victim_sexMale") %>%
+  mutate(OR = exp(estimate),
+         lower_CI = OR - 1.96*std.error,
+         upper_CI = OR + 1.96*std.error)
+  
+  tibble(
+    city = x,
+    OR = model[["OR"]],
+    CI_low = model[["lower_CI"]],
+    CI_upper = model[["upper_CI"]]
+)
+  
+}
+
+WaPo_ORs = map(cities, OR_sex) %>%
+  bind_rows()
+```
+
+Lastly, we plot the the OR of each city, ordered by increasing OR, and error bars for the CI. 
+
+```{r, plot ORs and CIs by city}
+ggplot(WaPo_ORs, aes(x = fct_reorder(city, OR), y = OR)) +
+  geom_point(stat = "identity") +
+  geom_errorbar(aes(ymin = CI_low, ymax = CI_upper)) + 
+  theme(axis.text.x = element_text(angle = 45, size = 5, hjust = 1))
+```
+
+* We see that there is some range in CI, with smaller ranges in certain cities like Chicago, IL and Detroit, MI. 
 
 # Problem 2
 
@@ -196,7 +231,7 @@ birthweight.df %>%
   geom_point()
 ```
 
-* Here we demonstrate a plot of the model's predicted values for birthweight plotted against the residual values from my model.
+* Here we demonstrate a plot of the model's predicted values for birthweight plotted against the residual values from my model. There is wide variability to the residuals, with most from -1000 to +1000, and most of the predicted values being <3500 for birthweight. 
 
 
 Next we will construct the models described by the homework. 
@@ -221,7 +256,11 @@ birthweight.df %>%
   geom_point()
 ```
 
-* Here we demonstrate two plots of the model's predicted values for birthweight plotted against the residual values from the model. The first is for the main model using main effects of birth length and gestatational age. The second is the alternative including the interactions and main effects of head circumference, length at birth, and sex of the baby.
+* Here we demonstrate two plots of the model's predicted values for birthweight plotted against the residual values from the model. 
+
+  * The first is for the main model using main effects of birth length and gestational age. Compared to my model the residuals are a bit tighter but the spread is still from -1000 to +1000, although there is a greater range of predicted birthweights. 
+
+  * The second is the alternative including the interactions and main effects of head circumference, length at birth, and sex of the baby. Compared to the prior two models, the residual range is a bit tighter now primarily focused in -500 to +500, with still a wide range of predicted values similiar to the main model. 
 
 
 Next we will set up cross validation of 100 splits. This will include variables for the each of the three above models, mapping the models across the cross-validation dataframe. We will then then calculate the RMSE for each of those models by mapping across them. 
