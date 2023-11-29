@@ -41,7 +41,8 @@ Balt_model = WaPo.df %>%
   filter(term == "victim_sexMale") %>%
   mutate(OR = exp(estimate),
          lower_CI = OR - 1.96*std.error,
-         upper_CI = OR + 1.96*std.error)
+         upper_CI = OR + 1.96*std.error) %>%
+  knitr::kable()
 ```
 
 Now we create a model that works for all the cities to output an OR of homcide being resolved based on victim sex of male vs female, and calculate the upper and lower confidence intervals. 
@@ -149,8 +150,15 @@ bootstrap_results =
 
 bootstrap_results %>%
   ggplot(aes(x = r.squared)) + 
-  geom_density()
+  geom_density() +
+  labs(title = "Distribution of R-Squared",
+       x = "R^2 value",
+       y = "Frequency")
+```
 
+* Our distribution of R2 values are primarily located at around 0.93, with a left sided tail nearing zero below 0.8. As the R2 values are the proportion of `tmax` explained by the predictors, the predominance of values near 0.90 shows the model has a good fit. 
+
+```{r}
 log_betas = bootstrap_results %>%
   filter(term %in% c("tmin", "prcp")) %>%
   group_by(strap_number) %>%
@@ -159,12 +167,11 @@ log_betas = bootstrap_results %>%
 
 log_betas %>%
   ggplot(aes(x = log_beta_multiple)) +
-  geom_density()
+  geom_density() +
+  labs(title = )
 ```
 
-* Our distribution of R2 values are primarily located at around 0.93, with a left sided tail nearing zero below 0.8
-
-* Our distribution of log(B1*B2) values are primarily located at 4.2, with a leftward tail extended below zero. 
+* Our distribution of log(B1*B2) values are primarily located at 4.2, with a leftward tail extended below zero. This demonstrates that there may be some joint effect between the predictor variables. 
 
 
 Next to find the upper and lower quantile (at 0.025 and 0.975 each) we will use the quantile function.
@@ -188,7 +195,7 @@ upper_log_beta <- quantile(log_betas$log_beta_multiple, 0.975, na.rm = TRUE)
 
 # Problem 3
 
-In this problem we will utilize the birthweight dataframe to evaluate different models using the cross-validation functions. 
+In this problem we will utilize the birth-weight dataframe to evaluate different models using the cross-validation functions. 
 
 * First we import that data, clean the names, mutate variables to make new factors of sex, father's race, mother's race, and malformation.  
 
@@ -217,6 +224,8 @@ birthweight.df <- read_csv("data/birthweight.csv") %>%
   dplyr::select(-c(babysex, frace, mrace, malform, pnumlbw, pnumsga))
 ```
 
+* The model has `r nrow(birthweight.df)` observations and `r ncol(birthweight.df)` variables named `r print(colnames(birthweight.df))`.
+
 I have constructed a model to predict birthweight (`bwt`), that considers socioeconomic demographic factors under that assumption that they are surrogates for health and healthcare access. I chose to model a linear model of `bwt` that relies on family monthly income, mother's weight at delivery, and maternal age. 
 
 This model will be named `fit_mine`. 
@@ -224,6 +233,22 @@ This model will be named `fit_mine`.
 ```{r, my birthweight model}
 fit_mine = lm(bwt ~ fincome + delwt + momage, data = birthweight.df) 
 
+fit_mine %>%
+  broom::tidy() %>%
+  knitr::kable()
+```
+
+Model interpretations:
+
+* We would not interpret the intercept as family income, mother's weight and age would not be zero.
+
+* The expected change per $1 increase in family monthly income is an increase in weight of 2.37 grams, with all other predictors held constant. 
+
+* The expected change per one pound increase in maternal weight at delivery is an increase in birth weight of 6.41 grams, with all other predictors held constant. 
+
+* The expected change per one year increase in maternal age at delivery is increase of 10.08 grams, with all other predictors held constant. 
+
+```{r}
 birthweight.df %>%
   modelr::add_residuals(fit_mine) %>%
   modelr::add_predictions(fit_mine) %>%
@@ -231,24 +256,45 @@ birthweight.df %>%
   geom_point()
 ```
 
-* Here we demonstrate a plot of the model's predicted values for birthweight plotted against the residual values from my model. There is wide variability to the residuals, with most from -1000 to +1000, and most of the predicted values being <3500 for birthweight. 
+
+Here we demonstrate a plot of the model's predicted values for birthweight plotted against the residual values from my model. There is wide variability to the residuals, with most from -1000 to +1000, and most of the predicted values being <3500 for birthweight. 
 
 
-Next we will construct the models described by the homework. 
+### Next we will construct the models described by the homework. 
 
-* The Main model will be named `fit_main`, and predicts birthweight from baby's length at birth and gestational age in weeks. 
-
-* The alternative model will be named `fit_alt`, and predicts birthweight from baby's head circumference, baby's length at birth, the sex of the baby, and interaction terms amongst them all: baby's head circumference * baby's length at birth, baby's head circumference * sex of baby, baby's length at birth * baby's sex, and baby's head circumference * baby's length at birth * baby's sex. 
+The Main model will be named `fit_main`, and predicts birthweight from baby's length at birth and gestational age in weeks. 
 
 ```{r, main and alternate models for birthweights}
 fit_main = lm(bwt ~ blength + gaweeks, data = birthweight.df)
+fit_main %>%
+  broom::tidy() %>%
+  knitr::kable()
+
 birthweight.df %>%
   modelr::add_residuals(fit_main) %>%
   modelr::add_predictions(fit_main) %>%
   ggplot(aes(x = pred, y = resid)) +
-  geom_point()
+  geom_point() 
+```
 
+Model interpretations:
+
+* Per each additional increase of baby's birth length of 1 unit, the estimated change in birth weight is 128.56 gram increase, all other predictors held constant. 
+
+* Per each additional gestational week of age, the estimated change in birth weight is 27.05 gram increase, all other predictors held constant. 
+
+  * Looking at the residual plot, compared to my model the residuals are a bit tighter but the spread is still from -1000 to +1000, although there is a greater range of predicted birthweights. 
+
+
+The alternative model will be named `fit_alt`, and predicts birthweight from baby's head circumference, baby's length at birth, the sex of the baby, and interaction terms amongst them all: baby's head circumference * baby's length at birth, baby's head circumference * sex of baby, baby's length at birth * baby's sex, and baby's head circumference * baby's length at birth * baby's sex. 
+
+```{r}
 fit_alt = lm(bwt ~ bhead + blength + sex + bhead*blength + bhead*sex + blength*sex + bhead*blength*sex, data = birthweight.df)
+
+fit_alt %>%
+  broom::tidy() %>%
+  knitr::kable()
+
 birthweight.df %>%
   modelr::add_residuals(fit_alt) %>%
   modelr::add_predictions(fit_alt) %>%
@@ -256,11 +302,9 @@ birthweight.df %>%
   geom_point()
 ```
 
-* Here we demonstrate two plots of the model's predicted values for birthweight plotted against the residual values from the model. 
+To interpret the changes per value, we must now consider the value of the predictor's Beta, as well as the interaction terms. 
 
-  * The first is for the main model using main effects of birth length and gestational age. Compared to my model the residuals are a bit tighter but the spread is still from -1000 to +1000, although there is a greater range of predicted birthweights. 
-
-  * The second is the alternative including the interactions and main effects of head circumference, length at birth, and sex of the baby. Compared to the prior two models, the residual range is a bit tighter now primarily focused in -500 to +500, with still a wide range of predicted values similiar to the main model. 
+  * The second models residual plot when compared to the prior two models, the residual range is a bit tighter now primarily focused in -500 to +500, with still a wide range of predicted values similar to the main model. 
 
 
 Next we will set up cross validation of 100 splits. This will include variables for the each of the three above models, mapping the models across the cross-validation dataframe. We will then then calculate the RMSE for each of those models by mapping across them. 
