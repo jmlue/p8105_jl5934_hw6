@@ -167,6 +167,11 @@ log_betas %>%
   labs(title = "Distribution of Log(B1*B2)", 
        x = "log(B1*B2) value",
        y = "Frequency")
+
+na_proportion <- colMeans(is.na(log_betas)) %>%
+  knitr::kable(col.names = c("variable","proportion_NaN"))
+
+na_proportion
 ```
 
 * Our distribution of log(B1*B2) values are primarily located at 4.2, with a leftward tail extended below zero. This demonstrates that there may be some joint effect between the predictor variables. 
