@@ -108,12 +108,8 @@ weather_df =
 We will set up the bootstrapping function such that it selects a quarter of the total samples each time, with replacement, and creates 5000 new subsets. 
 
 ```{r, clean up weather df}
-#lm(tmax ~ tmin + prcp, data = weather_df) %>%
- # broom::glance() #%>% #r.squared 
-  #broom::tidy() #log(tibble[2,4]*tibble[3,4])
-
 boot_sample = function(df) {
-  sample_frac(tbl = df, size = .25, replace = TRUE)
+  sample_frac(tbl = df, replace = TRUE) #size = .25, 
 }
 
 boot_straps = 
@@ -168,7 +164,9 @@ log_betas = bootstrap_results %>%
 log_betas %>%
   ggplot(aes(x = log_beta_multiple)) +
   geom_density() +
-  labs(title = )
+  labs(title = "Distribution of Log(B1*B2)", 
+       x = "log(B1*B2) value",
+       y = "Frequency")
 ```
 
 * Our distribution of log(B1*B2) values are primarily located at 4.2, with a leftward tail extended below zero. This demonstrates that there may be some joint effect between the predictor variables. 
@@ -185,12 +183,17 @@ upper_r2 <- quantile(bootstrap_results$r.squared, 0.975)
 lower_log_beta <- quantile(log_betas$log_beta_multiple, 0.025, na.rm = TRUE)
 upper_log_beta <- quantile(log_betas$log_beta_multiple, 0.975, na.rm = TRUE)
 
+Confidence_intervals <- data.frame(
+  Variable = c("Lower_CI", "Upper_CI"),
+  R_Squared = c(lower_r2, upper_r2),
+  Log_Betas = c(lower_log_beta, upper_log_beta)
+) 
 
+Confidence_intervals %>%
+  knitr::kable()
 ```
 
-* For R2 the lower quantile at 2.5% is `r print(lower_r2)` 0.8637678, whereas the upper quantile at 97.5% is `r print(upper_r2)` 0.9558145. Thus the 95% CI is between those two values. 
-
-* For log(B1*B2) the lower quantile at 2.5% is `r print(lower_log_beta)` 0.9941103, whereas the upper quantile at 97.5% is `r print(upper_log_beta)` 4.940135. Thus the 95% CI is between those two values. 
+* Above in the table, we can see the lower and upper Confidence intervals for the R_Squared and Log of Betas in our bootstrapping model. 
 
 
 # Problem 3
@@ -253,7 +256,10 @@ birthweight.df %>%
   modelr::add_residuals(fit_mine) %>%
   modelr::add_predictions(fit_mine) %>%
   ggplot(aes(x = pred, y = resid)) +
-  geom_point()
+  geom_point() +
+  labs(title = "Predicted vs residuals", 
+       x = "Predicted Birth Weight (g)",
+       y = "Residual value")
 ```
 
 
@@ -274,7 +280,10 @@ birthweight.df %>%
   modelr::add_residuals(fit_main) %>%
   modelr::add_predictions(fit_main) %>%
   ggplot(aes(x = pred, y = resid)) +
-  geom_point() 
+  geom_point() +
+  labs(title = "Predicted vs residuals", 
+       x = "Predicted Birth Weight (g)",
+       y = "Residual value")
 ```
 
 Model interpretations:
@@ -299,7 +308,10 @@ birthweight.df %>%
   modelr::add_residuals(fit_alt) %>%
   modelr::add_predictions(fit_alt) %>%
   ggplot(aes(x = pred, y = resid)) +
-  geom_point()
+  geom_point() +
+  labs(title = "Predicted vs residuals", 
+       x = "Predicted Birth Weight (g)",
+       y = "Residual value")
 ```
 
 To interpret the changes per value, we must now consider the value of the predictor's Beta, as well as the interaction terms. 
@@ -336,7 +348,10 @@ cv_df |>
     values_to = "rmse",
     names_prefix = "rmse_") |> 
   mutate(model = fct_inorder(model)) |> 
-  ggplot(aes(x = model, y = rmse)) + geom_violin()
+  ggplot(aes(x = model, y = rmse)) + geom_violin() +
+  labs(title = "Density Plot of RMSE values", 
+       x = "Model",
+       y = "Frequency")
 ```
 
 * The model with highest RMSE was my own, whereas the alternative that included more variables and interaction terms had the lowest spread of RMSE values. This suggests it is the more accurate amongst them.
